@@ -512,12 +512,43 @@
       pointer-events: auto;
     }
 
-    @media (max-width: 768px) {
-      .chalkboard { width: 170px; padding: 10px; font-size: 11px; }
-      .bar-shelf { width: 180px; padding: 10px; }
-      .pub-title { font-size: 15px; }
-      .modal-box { padding: 20px; }
-      .mode-select-grid { grid-template-columns: 1fr; }
+    .touch-only { display: none; }
+    .modal-overlay { overflow-y: auto; }
+    @media (max-width: 768px), (hover: none) {
+      .touch-only { display: block; }
+      .desk-only { display: none; }
+      .modal-overlay { align-items: flex-start; }
+      .modal-box { padding: 16px; gap: 12px; margin: 10px auto; max-width: 96vw; }
+      .modal-title { font-size: 26px; }
+      .rule-box { font-size: 12px; padding: 10px; }
+      .mode-select-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      .mode-option-btn { padding: 6px 4px; font-size: 11px; }
+      .modal-box > p { font-size: 12px !important; }
+      .btn-main { padding: 14px 18px; font-size: 17px; }
+      .ui-layer { padding: 6px; padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+      .pub-header { gap: 6px; }
+      .pub-sign { padding: 0; border: none; background: none; box-shadow: none; pointer-events: auto; order: 2; }
+      .pub-sign > :not(.audio-btn) { display: none; }
+      .chalkboard { width: 150px; padding: 6px 8px; border-width: 4px; font-size: 10px; order: 1; }
+      .chalk-title { font-size: 9px; padding-bottom: 3px; margin-bottom: 5px; }
+      .player-row { padding: 3px 5px; margin-bottom: 3px; }
+      .player-name { font-size: 11px; gap: 4px; }
+      .player-score { font-size: 17px; }
+      #round-info { margin-top: 2px !important; }
+      .bar-shelf { width: 150px; padding: 6px 8px; gap: 5px; border-width: 2px; order: 3; }
+      .bar-shelf > div:nth-child(2) { display: none; }
+      .alcoo-header { font-size: 8px; flex-direction: column; margin-bottom: 2px; }
+      .alcoo-bar-bg { height: 9px; }
+      .alcoo-status { font-size: 9px; margin-top: 2px; }
+      .alcootest-gauge { padding: 5px 6px; }
+      .dart-icon { font-size: 15px; }
+      .darts-rack { padding: 3px; gap: 8px; }
+      .bottom-bar { flex-direction: column; align-items: stretch; gap: 6px; }
+      .bottom-bar > div:last-child { text-align: center; font-size: 11px !important; padding: 4px 8px !important; }
+      .action-panel { padding: 8px; gap: 8px; justify-content: center; flex-wrap: wrap; }
+      .action-panel > div:last-child { display: none; }
+      .focus-btn { width: 100%; justify-content: center; padding: 16px 12px; font-size: 15px; touch-action: none; }
+      .hiccup-warning { font-size: 11px; text-align: center; }
     }
   </style>
 </head>
@@ -598,7 +629,7 @@
       <div class="action-panel">
         <button class="focus-btn" id="btn-drink-focus">
           <span style="font-size: 20px;">🍺</span>
-          <span id="drink-btn-label">BOIRE UN COUP (Maintenir ESPACE)</span>
+          <span id="drink-btn-label">BOIRE UN COUP (Maintenir)</span>
         </button>
         <div class="hiccup-warning" id="hiccup-alert">🚫 TROP BOURRÉ ! LE BARMAN FERME LE ROBINET ! TIRE !</div>
         <div style="font-size: 11px; color: #cbd5e1; line-height: 1.3;">
@@ -626,6 +657,8 @@
         <div>🚫 <b>Quand la jauge est pleine (100% Bourré) :</b> Le barman coupe le robinet ! Impossible de boire pour stabiliser... <b>mais il faut quand même tirer vos fléchettes en plein délire !</b></div>
         <div>👥 <b>1 ou 2 Joueurs :</b> Affrontez un pote sur le même écran/clavier, ou défiez <i>Dédé du Bar</i> contrôlé par l'ordinateur !</div>
       </div>
+
+      <div class="rule-box touch-only">📱 <b>Sur téléphone :</b> posez le doigt sur l'écran et faites-le glisser pour viser (le viseur reste <b>au-dessus de votre doigt</b>). <b>Gardez le doigt appuyé</b> pour charger la puissance, <b>relâchez pour tirer</b>. Avec l'autre pouce, <b>maintenez le bouton 🍺</b> pour boire et stabiliser votre visée.</div>
 
       <div class="form-group">
         <label class="form-label">CHOIX DU MODE :</label>
@@ -1010,7 +1043,11 @@
 
       this.boardX = this.width / 2;
       this.boardY = Math.max(160, this.height * 0.44);
-      this.boardRadius = Math.min(this.width * 0.25, this.height * 0.33, 240);
+      const portrait = this.height > this.width;
+      this.boardRadius = portrait
+        ? Math.min(this.width * 0.42, this.height * 0.3, 240)
+        : Math.min(this.width * 0.25, this.height * 0.33, 240);
+      if (portrait) this.boardY = Math.max(this.boardRadius + 150, this.height * 0.42);
     }
 
     initEvents() {
@@ -1039,6 +1076,35 @@
         this.mouse.isDown = false;
       });
 
+      // Tactile : le viseur est décalé au-dessus du doigt, maintenir = charger, relâcher = tirer
+      const TOUCH_OFFSET = 80;
+      let aimTouch = null;
+      const findTouch = (list, id) => { for (const t of list) if (t.identifier === id) return t; return null; };
+      this.canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (aimTouch !== null || this.isAiTurn || this.flyingDart) return;
+        const t = e.changedTouches[0];
+        audio.init();
+        aimTouch = t.identifier;
+        this.mouse.x = t.clientX; this.mouse.y = t.clientY - TOUCH_OFFSET;
+        this.mouse.isDown = true; this.mouse.downTime = Date.now(); this.powerCharging = true;
+      }, { passive: false });
+      this.canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const t = findTouch(e.changedTouches, aimTouch);
+        if (!t || this.isAiTurn) return;
+        this.mouse.x = t.clientX; this.mouse.y = t.clientY - TOUCH_OFFSET;
+      }, { passive: false });
+      const endAim = (e, fire) => {
+        const t = findTouch(e.changedTouches, aimTouch);
+        if (!t) return;
+        aimTouch = null;
+        if (this.powerCharging){ this.powerCharging = false; if (fire) this.executeThrow(); }
+        this.mouse.isDown = false;
+      };
+      this.canvas.addEventListener('touchend', (e) => { e.preventDefault(); endAim(e, true); }, { passive: false });
+      this.canvas.addEventListener('touchcancel', (e) => endAim(e, false));
+
       // Spacebar for Drinking / Focus
       window.addEventListener('keydown', (e) => {
         if (e.code === 'Space' && !e.repeat) {
@@ -1058,8 +1124,19 @@
       if (drinkBtn) {
         drinkBtn.addEventListener('mousedown', () => this.startDrinking());
         window.addEventListener('mouseup', () => this.stopDrinking());
-        drinkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.startDrinking(); }, { passive: false });
-        window.addEventListener('touchend', () => this.stopDrinking());
+        let drinkTouch = null;
+        drinkBtn.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          if (drinkTouch !== null) return;
+          drinkTouch = e.changedTouches[0].identifier;
+          this.startDrinking();
+        }, { passive: false });
+        const endDrink = (e) => {
+          if (drinkTouch === null || !findTouch(e.changedTouches, drinkTouch)) return;
+          drinkTouch = null; this.stopDrinking();
+        };
+        window.addEventListener('touchend', endDrink);
+        window.addEventListener('touchcancel', endDrink);
       }
 
       // Audio Toggle
@@ -1382,7 +1459,7 @@
         bacBar.style.background = 'linear-gradient(90deg, #10b981, #f59e0b, #ef4444)';
         bacBar.style.boxShadow = 'none';
         if (drinkBtn) drinkBtn.classList.remove('full-drunk');
-        if (drinkLabel) drinkLabel.textContent = "BOIRE UN COUP (Maintenir ESPACE)";
+        if (drinkLabel) drinkLabel.textContent = (matchMedia("(hover: none)").matches ? "BOIRE UN COUP (Maintenir)" : "BOIRE UN COUP (Maintenir ESPACE)");
         if (hiccupAlert) hiccupAlert.style.display = 'none';
       }
 
