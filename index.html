@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>BOURRÉ-CHETTES — Fléchettes de Comptoir</title>
+  <style>
+    :root {
+      --wood-dark: #20130d;
+      --wood-mid: #3d2314;
+      --wood-light: #6e4325;
+      --brass: #e5b35a;
+      --brass-glow: rgba(229, 179, 90, 0.4);
+      --chalk-bg: #1e2621;
+      --chalk-white: #f1f5f2;
+      --chalk-yellow: #fef08a;
+      --beer-amber: #f59e0b;
+      --felt-green: #113826;
+      --red-bull: #dc2626;
+      --green-bull: #16a34a;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0c0806;
+      font-family: 'Comic Sans MS', 'Chalkboard SE', 'Segoe UI', cursive, sans-serif;
+      color: #fff;
+    }
+
+    #game-container {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 35%, #2a1910 0%, #0c0806 85%);
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* Drunk Vision Screen Effects */
+    #drunk-distortion {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      mix-blend-mode: color-dodge;
+      opacity: 0.15;
+      background: radial-gradient(circle at center, transparent 30%, rgba(245, 158, 11, 0.2) 80%, rgba(220, 38, 38, 0.3) 100%);
+      transition: opacity 0.5s ease;
+      z-index: 5;
+    }
+
+    /* Vignette & Blur overlay */
+    #drunk-blur-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      backdrop-filter: blur(0px);
+      transition: backdrop-filter 0.3s ease;
+      z-index: 4;
+    }
+
+    /* UI Overlay */
+    .ui-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+      z-index: 10;
+    }
+
+    /* Top Pub Header */
+    .pub-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .pub-sign {
+      background: linear-gradient(180deg, var(--wood-mid), var(--wood-dark));
+      border: 3px solid var(--brass);
+      border-radius: 12px;
+      padding: 8px 18px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.8), inset 0 0 10px rgba(229,179,90,0.3);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pub-title {
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--brass);
+      text-shadow: 0 0 10px var(--brass-glow);
+      letter-spacing: 1px;
+    }
+
+    /* Chalkboard Scoreboard (Left) */
+    .chalkboard {
+      pointer-events: auto;
+      background: var(--chalk-bg);
+      border: 6px solid var(--wood-light);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.8), inset 0 0 25px rgba(0,0,0,0.7);
+      border-radius: 8px;
+      padding: 14px 18px;
+      width: 250px;
+      font-family: 'Courier New', monospace;
+      color: var(--chalk-white);
+      position: relative;
+    }
+
+    .chalkboard::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 3px);
+      pointer-events: none;
+    }
+
+    .chalk-title {
+      text-align: center;
+      font-size: 14px;
+      font-weight: bold;
+      color: var(--chalk-yellow);
+      border-bottom: 2px dashed rgba(255,255,255,0.3);
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+      letter-spacing: 1px;
+    }
+
+    .player-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      transition: all 0.3s ease;
+    }
+
+    .player-row.active {
+      background: rgba(245, 158, 11, 0.25);
+      border: 1px solid var(--brass);
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+      font-weight: bold;
+    }
+
+    .player-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .player-score {
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--chalk-yellow);
+    }
+
+    /* Alcootest & Bar Shelf (Right) */
+    .bar-shelf {
+      pointer-events: auto;
+      background: linear-gradient(180deg, var(--wood-mid), var(--wood-dark));
+      border: 3px solid var(--brass);
+      border-radius: 12px;
+      padding: 12px 16px;
+      width: 260px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.7);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .alcootest-gauge {
+      background: rgba(0,0,0,0.5);
+      border-radius: 8px;
+      padding: 8px 12px;
+      border: 1px solid rgba(229, 179, 90, 0.3);
+    }
+
+    .alcoo-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #cbd5e1;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+
+    .alcoo-bar-bg {
+      width: 100%;
+      height: 12px;
+      background: #1e293b;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .alcoo-bar-fill {
+      height: 100%;
+      width: 40%;
+      border-radius: 6px;
+      background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);
+      transition: width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .alcoo-status {
+      font-size: 12px;
+      color: var(--brass);
+      font-style: italic;
+      margin-top: 4px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    /* Quick Bar Actions */
+    .bar-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .bar-btn {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--brass);
+      border-radius: 8px;
+      color: #fff;
+      padding: 6px 4px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      transition: all 0.2s ease;
+    }
+
+    .bar-btn:hover {
+      background: rgba(229, 179, 90, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .bar-btn:active {
+      transform: translateY(1px);
+    }
+
+    /* Darts Remaining Rack */
+    .darts-rack {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      background: rgba(0,0,0,0.4);
+      padding: 6px;
+      border-radius: 8px;
+    }
+
+    .dart-icon {
+      font-size: 20px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .dart-icon.used {
+      opacity: 0.2;
+      transform: scale(0.8);
+    }
+
+    /* Bottom Control & Aim Hint Bar */
+    .bottom-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      width: 100%;
+    }
+
+    .action-panel {
+      pointer-events: auto;
+      background: linear-gradient(180deg, var(--wood-mid), var(--wood-dark));
+      border: 2px solid var(--brass);
+      border-radius: 12px;
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.8);
+    }
+
+    .focus-btn {
+      background: linear-gradient(180deg, #d97706, #92400e);
+      border: 2px solid var(--brass);
+      border-radius: 10px;
+      color: #fff;
+      font-weight: 900;
+      font-size: 14px;
+      padding: 10px 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+      transition: all 0.15s ease;
+    }
+
+    .focus-btn.holding {
+      background: linear-gradient(180deg, #facc15, #ca8a04);
+      border-color: #fef08a;
+      box-shadow: 0 0 25px rgba(250, 204, 21, 0.8);
+      color: #1c1917;
+      transform: scale(0.97);
+    }
+
+    .focus-btn.full-drunk {
+      background: linear-gradient(180deg, #374151, #1f2937);
+      border-color: #ef4444;
+      color: #fca5a5;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+      cursor: not-allowed;
+    }
+
+    .hiccup-warning {
+      color: #ef4444;
+      font-weight: 900;
+      font-size: 13px;
+      animation: pulseAlert 0.3s infinite alternate;
+      display: none;
+    }
+
+    @keyframes pulseAlert {
+      from { transform: scale(1); opacity: 0.8; }
+      to { transform: scale(1.15); opacity: 1; }
+    }
+
+    /* Throw Announcer Floating Text */
+    #announcer-text {
+      position: absolute;
+      top: 20%;
+      left: 50%;
+      width: 90%;
+      max-width: 600px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      font-size: clamp(20px, 3.5vw, 34px);
+      font-weight: 900;
+      color: var(--chalk-yellow);
+      text-shadow: 0 4px 18px rgba(0,0,0,0.9), 0 0 10px var(--beer-amber);
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.2s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 20;
+    }
+
+    #announcer-text.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+
+    /* Modal Screens */
+    .modal-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(8, 5, 4, 0.88);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+      pointer-events: auto;
+    }
+
+    .modal-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .modal-box {
+      width: 90%;
+      max-width: 580px;
+      background: linear-gradient(180deg, var(--wood-mid), var(--wood-dark));
+      border: 4px solid var(--brass);
+      box-shadow: 0 15px 50px rgba(0,0,0,0.9), inset 0 0 30px rgba(0,0,0,0.7);
+      border-radius: 16px;
+      padding: 28px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      position: relative;
+    }
+
+    .modal-title {
+      font-size: 34px;
+      font-weight: 900;
+      color: var(--brass);
+      text-shadow: 0 0 15px var(--brass-glow);
+      letter-spacing: 2px;
+    }
+
+    .rule-box {
+      background: rgba(0,0,0,0.45);
+      border: 1px dashed var(--brass);
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 13px;
+      text-align: left;
+      line-height: 1.5;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: left;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: bold;
+      color: var(--brass);
+    }
+
+    .mode-select-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .mode-option-btn {
+      background: rgba(0,0,0,0.4);
+      border: 2px solid rgba(229, 179, 90, 0.4);
+      border-radius: 10px;
+      padding: 10px 8px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .mode-option-btn.selected {
+      border-color: var(--brass);
+      background: rgba(229, 179, 90, 0.3);
+      box-shadow: 0 0 12px var(--brass-glow);
+    }
+
+    .btn-main {
+      background: linear-gradient(180deg, #f59e0b, #b45309);
+      border: 2px solid #fef08a;
+      border-radius: 12px;
+      color: #000;
+      font-size: 18px;
+      font-weight: 900;
+      padding: 14px 28px;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
+      transition: all 0.15s ease;
+      letter-spacing: 1px;
+    }
+
+    .btn-main:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 8px 25px rgba(245, 158, 11, 0.8);
+    }
+
+    .btn-main:active {
+      transform: translateY(1px);
+    }
+
+    /* Sound toggle */
+    .audio-btn {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid var(--brass);
+      color: var(--brass);
+      border-radius: 50%;
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      pointer-events: auto;
+    }
+
+    @media (max-width: 768px) {
+      .chalkboard { width: 170px; padding: 10px; font-size: 11px; }
+      .bar-shelf { width: 180px; padding: 10px; }
+      .pub-title { font-size: 15px; }
+      .modal-box { padding: 20px; }
+      .mode-select-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <canvas id="pub-canvas"></canvas>
+    <div id="drunk-distortion"></div>
+    <div id="drunk-blur-layer"></div>
+  </div>
+
+  <div id="announcer-text">TRIPLE 20 !</div>
+
+  <!-- In-Game UI Overlay -->
+  <div class="ui-layer" id="game-ui">
+    <div class="pub-header">
+      <!-- Chalkboard Scoreboard -->
+      <div class="chalkboard">
+        <div class="chalk-title" id="mode-display-title">PUB 301 · COMPTOIR</div>
+        <div class="player-row active" id="p1-row">
+          <div class="player-name">
+            <span>🍺</span>
+            <span id="p1-name-display">GÉGÉ</span>
+          </div>
+          <div class="player-score" id="p1-score-display">301</div>
+        </div>
+        <div class="player-row" id="p2-row">
+          <div class="player-name">
+            <span>🍷</span>
+            <span id="p2-name-display">DÉDÉ</span>
+          </div>
+          <div class="player-score" id="p2-score-display">301</div>
+        </div>
+        <div style="font-size: 10px; color: #94a3b8; text-align: center; margin-top: 6px;" id="round-info">
+          Tour 1 · Volée 1/3
+        </div>
+      </div>
+
+      <!-- Center Pub Sign -->
+      <div class="pub-sign">
+        <span style="font-size: 24px;">🎯</span>
+        <div>
+          <div class="pub-title">AU VIEUX COUD'BOUL</div>
+          <div style="font-size: 10px; color: #cbd5e1; text-align: center;">Championnat de Fléchettes Éméchées</div>
+        </div>
+        <button class="audio-btn" id="btn-audio-toggle" title="Son Actif/Muet">🔊</button>
+      </div>
+
+      <!-- Right Shelf (Alcootest & Bar supplies) -->
+      <div class="bar-shelf">
+        <div class="alcootest-gauge">
+          <div class="alcoo-header">
+            <span>JAUGE D'ALCOOLÉMIE</span>
+            <span id="bac-value" style="color: var(--beer-amber); font-weight: 900;">0.0 g/L (0%)</span>
+          </div>
+          <div class="alcoo-bar-bg">
+            <div class="alcoo-bar-fill" id="bac-bar" style="width: 0%;"></div>
+          </div>
+          <div class="alcoo-status" id="bac-label">"Sobre comme un chameau"</div>
+        </div>
+
+        <div style="font-size: 11px; color: #cbd5e1; text-align: center; background: rgba(0,0,0,0.35); padding: 8px 10px; border-radius: 8px; border: 1px dashed rgba(229,179,90,0.3); line-height: 1.4;">
+          🍻 <b>Ça tangue ?</b><br>
+          <i>Maintiens ESPACE pour boire un coup et figer ta visée !</i>
+        </div>
+
+        <!-- Darts in Hand -->
+        <div class="darts-rack">
+          <span class="dart-icon" id="dart-icon-0">🎯</span>
+          <span class="dart-icon" id="dart-icon-1">🎯</span>
+          <span class="dart-icon" id="dart-icon-2">🎯</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Controls & Action Panel -->
+    <div class="bottom-bar">
+      <div class="action-panel">
+        <button class="focus-btn" id="btn-drink-focus">
+          <span style="font-size: 20px;">🍺</span>
+          <span id="drink-btn-label">BOIRE UN COUP (Maintenir ESPACE)</span>
+        </button>
+        <div class="hiccup-warning" id="hiccup-alert">🚫 TROP BOURRÉ ! LE BARMAN FERME LE ROBINET ! TIRE !</div>
+        <div style="font-size: 11px; color: #cbd5e1; line-height: 1.3;">
+          <b>Boire (Espace) :</b> Rend la vision nette sur le coup, mais vous saoule pour la suite !<br>
+          <b>Tir :</b> Maintenez le clic pour charger la puissance, relâchez pour lancer.
+        </div>
+      </div>
+
+      <div style="background: rgba(0,0,0,0.6); padding: 8px 14px; border-radius: 8px; border: 1px solid var(--brass); font-size: 12px; color: var(--chalk-yellow);">
+        Dernier lancer : <b id="last-throw-badge">Prêt à tirer</b>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Menu Modal -->
+  <div class="modal-overlay" id="start-modal">
+    <div class="modal-box">
+      <h1 class="modal-title">BOURRÉ-CHETTES</h1>
+      <p style="color: #cbd5e1; font-size: 13px;">Le seul jeu de fléchettes où vous voyez la cible en double (ou triple) !</p>
+
+      <div class="rule-box">
+        <div>🍺 <b>Le Dilemme de l'Alcool (Boire = Se Concentrer) :</b> Pour stabiliser votre main et fusionner les cibles doubles, <b>maintenez ESPACE pour boire un coup</b> !</div>
+        <div>👀 <b>Sur le coup :</b> Vision laser nette et main immobile immédiate pour ajuster votre tir.</div>
+        <div>😵‍💫 <b>Mais après :</b> L'alcool monte dans le sang ! Dès que vous relâchez, la vision devient de plus en plus floue, la cible tangue et se dédouble.</div>
+        <div>🚫 <b>Quand la jauge est pleine (100% Bourré) :</b> Le barman coupe le robinet ! Impossible de boire pour stabiliser... <b>mais il faut quand même tirer vos fléchettes en plein délire !</b></div>
+        <div>👥 <b>1 ou 2 Joueurs :</b> Affrontez un pote sur le même écran/clavier, ou défiez <i>Dédé du Bar</i> contrôlé par l'ordinateur !</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">CHOIX DU MODE :</label>
+        <div class="mode-select-grid">
+          <div class="mode-option-btn selected" data-mode="301">
+            <span style="font-size: 18px;">📉</span>
+            <span>301 Classique</span>
+            <small style="font-size: 9px; opacity: 0.8;">Décompte vers 0</small>
+          </div>
+          <div class="mode-option-btn" data-mode="clock">
+            <span style="font-size: 18px;">⏰</span>
+            <span>Tour d'Horloge</span>
+            <small style="font-size: 9px; opacity: 0.8;">De 1 à 20 + Bull</small>
+          </div>
+          <div class="mode-option-btn" data-mode="duel9">
+            <span style="font-size: 18px;">⚡</span>
+            <span>Duel 9 Flèches</span>
+            <small style="font-size: 9px; opacity: 0.8;">Score max total</small>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 12px;">
+        <div class="form-group" style="flex: 1;">
+          <label class="form-label">JOUEUR 1 :</label>
+          <input type="text" id="input-p1" value="Gégé" style="background:#111; border:1px solid var(--brass); border-radius:6px; padding:8px; color:#fff; font-weight:bold; font-size:14px;">
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label class="form-label">ADVERSAIRE :</label>
+          <select id="select-opponent" style="background:#111; border:1px solid var(--brass); border-radius:6px; padding:8px; color:#fff; font-weight:bold; font-size:14px;">
+            <option value="human">Joueur 2 (Pote en local)</option>
+            <option value="ai_easy">Dédé (IA - 3g dans chaque œil)</option>
+            <option value="ai_hard">Le Patron du Bar (IA - Redoutable)</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-main" id="btn-start-game">
+        <span>PASSER AU PAS DE TIR</span>
+        <span>🎯</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- End Victory Modal -->
+  <div class="modal-overlay hidden" id="end-modal">
+    <div class="modal-box">
+      <div style="font-size: 48px;">🏆🍺</div>
+      <h1 class="modal-title" id="end-winner-title">GÉGÉ REMPORTE LA TOURNÉE !</h1>
+      <p id="end-summary" style="color: #cbd5e1; font-size: 14px;">Une précision miraculeuse malgré un taux d'alcoolémie astronomique !</p>
+
+      <div class="rule-box" id="end-stats-box" style="text-align: center;">
+        <!-- Injected via JS -->
+      </div>
+
+      <button class="btn-main" id="btn-replay">
+        <span>REMETTRE UNE TOURNÉE ↺</span>
+      </button>
+    </div>
+  </div>
+
+  <script>
+  /* ==========================================================================
+     SYNTH AUDIO ENGINE (Web Audio API - 100% Procedural Pub Ambience & SFX)
+     ========================================================================== */
+  class PubAudioEngine {
+    constructor() {
+      this.ctx = null;
+      this.muted = false;
+      this.ambienceTimer = null;
+    }
+
+    init() {
+      if (this.ctx) {
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        return;
+      }
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      this.startPubAmbience();
+    }
+
+    startPubAmbience() {
+      // Occasional clinking glasses and cozy bar murmurs
+      this.ambienceTimer = setInterval(() => {
+        if (this.muted || !this.ctx || Math.random() > 0.4) return;
+        this.playGlassClink();
+      }, 5500);
+    }
+
+    playDartThrow() {
+      if (this.muted || !this.ctx) return;
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(800, t);
+      filter.frequency.linearRampToValueAtTime(250, t + 0.15);
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(400, t);
+      osc.frequency.exponentialRampToValueAtTime(100, t + 0.15);
+
+      gain.gain.setValueAtTime(0.08, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(t);
+      osc.stop(t + 0.15);
+    }
+
+    playDartHit(type = 'single') {
+      if (this.muted || !this.ctx) return;
+      const t = this.ctx.currentTime;
+
+      if (type === 'wall') {
+        // Dull wood/drywall thud
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(140, t);
+        osc.frequency.exponentialRampToValueAtTime(35, t + 0.18);
+        gain.gain.setValueAtTime(0.3, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.18);
+        return;
+      }
+
+      // Authentic sisal dartboard "THWACK!"
+      const thwack = this.ctx.createOscillator();
+      const thwackGain = this.ctx.createGain();
+      thwack.type = 'sine';
+      thwack.frequency.setValueAtTime(260, t);
+      thwack.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+      thwackGain.gain.setValueAtTime(0.4, t);
+      thwackGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+      thwack.connect(thwackGain);
+      thwackGain.connect(this.ctx.destination);
+      thwack.start(t);
+      thwack.stop(t + 0.12);
+
+      // Spring vibration / boing
+      const spring = this.ctx.createOscillator();
+      const sGain = this.ctx.createGain();
+      spring.type = 'triangle';
+      spring.frequency.setValueAtTime(type === 'triple' || type === 'bullseye' ? 880 : 540, t + 0.03);
+      spring.frequency.linearRampToValueAtTime(type === 'triple' ? 720 : 420, t + 0.22);
+      sGain.gain.setValueAtTime(0.18, t + 0.03);
+      sGain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      spring.connect(sGain);
+      sGain.connect(this.ctx.destination);
+      spring.start(t + 0.03);
+      spring.stop(t + 0.22);
+
+      // Cheers for Triple or Bullseye!
+      if (type === 'triple' || type === 'bullseye') {
+        this.playCheer();
+      }
+    }
+
+    playGlassClink() {
+      if (this.muted || !this.ctx) return;
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(2400 + Math.random() * 400, t);
+      gain.gain.setValueAtTime(0.06, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.4);
+    }
+
+    playSipBeer() {
+      if (this.muted || !this.ctx) return;
+      const t = this.ctx.currentTime;
+      // Slurp / gulp
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(160 + Math.random() * 50, t);
+      osc.frequency.exponentialRampToValueAtTime(340 + Math.random() * 60, t + 0.14);
+      gain.gain.setValueAtTime(0.2, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.18);
+    }
+
+    playBarBell() {
+      if (this.muted || !this.ctx) return;
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1750, t);
+      gain.gain.setValueAtTime(0.35, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.75);
+    }
+
+    playHiccup() {
+      if (this.muted || !this.ctx) return;
+      const t = this.ctx.currentTime;
+      // High squeak + short breath "HIPS!"
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(450, t);
+      osc.frequency.exponentialRampToValueAtTime(850, t + 0.08);
+      gain.gain.setValueAtTime(0.25, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.12);
+    }
+
+    playCheer() {
+      if (this.muted || !this.ctx) return;
+      const t = this.ctx.currentTime;
+      // Crowd warm ovation
+      for (let i = 0; i < 3; i++) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300 + i * 150, t);
+        osc.frequency.linearRampToValueAtTime(400 + i * 100, t + 0.4);
+        gain.gain.setValueAtTime(0.06, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.5);
+      }
+    }
+  }
+
+  const audio = new PubAudioEngine();
+
+  /* ==========================================================================
+     DARTBOARD SCORING & GEOMETRY
+     ========================================================================== */
+  const SECTORS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+
+  function evaluateDartHit(boardX, boardY, hitX, hitY, boardRadius) {
+    const dx = hitX - boardX;
+    const dy = hitY - boardY;
+    const dist = Math.hypot(dx, dy);
+    const r = dist / boardRadius;
+
+    // Out of board entirely (drywall / poster)
+    if (r > 1.35) {
+      return { text: "DANS LE MUR !", score: 0, mult: 0, sector: 0, type: 'wall' };
+    }
+    // Board black outer rim
+    if (r > 1.0) {
+      return { text: "CADRE EN BOIS (0 pt)", score: 0, mult: 0, sector: 0, type: 'miss' };
+    }
+    // Double Bull (50 pts)
+    if (r <= 0.038) {
+      return { text: "DOUBLE BULL ! (50 pts)", score: 50, mult: 2, sector: 25, type: 'bullseye' };
+    }
+    // Simple Bull (25 pts)
+    if (r <= 0.095) {
+      return { text: "BULLSEYE ! (25 pts)", score: 25, mult: 1, sector: 25, type: 'bull' };
+    }
+
+    // Sectors calculations (12 o'clock is 20)
+    let angle = Math.atan2(dy, dx); // -PI to PI
+    let normAngle = angle + Math.PI / 2; // top is 0
+    if (normAngle < 0) normAngle += Math.PI * 2;
+    normAngle += Math.PI / 20; // 9 degrees offset
+    if (normAngle >= Math.PI * 2) normAngle -= Math.PI * 2;
+
+    const sectorIdx = Math.floor(normAngle / (Math.PI / 10));
+    const sector = SECTORS[sectorIdx % 20];
+
+    let mult = 1;
+    let type = 'single';
+    let prefix = 'SIMPLE';
+
+    if (r >= 0.53 && r <= 0.60) {
+      mult = 3;
+      type = 'triple';
+      prefix = 'TRIPLE';
+    } else if (r >= 0.93 && r <= 1.00) {
+      mult = 2;
+      type = 'double';
+      prefix = 'DOUBLE';
+    }
+
+    const pts = sector * mult;
+    return {
+      text: `${prefix} ${sector} (${pts} pts)`,
+      score: pts,
+      mult: mult,
+      sector: sector,
+      type: type
+    };
+  }
+
+  /* ==========================================================================
+     GAME CONTROLLER & DRUNK PHYSICS
+     ========================================================================== */
+  const MAX_BAC = 3.0; // 3.0 g/L = 100% de la jauge (Complètement bourré)
+  const BASE_DRUNK = 0.95; // Tangage de base dès le début (ça tangue tout de suite !)
+
+  class DrunkDartsGame {
+    constructor() {
+      this.canvas = document.getElementById('pub-canvas');
+      this.ctx = this.canvas.getContext('2d');
+
+      this.mode = '301'; // '301', 'clock', 'duel9'
+      this.opponentType = 'human'; // 'human', 'ai_easy', 'ai_hard'
+
+      // Players start with 0.0 g/L added, but have BASE_DRUNK sway right away
+      this.players = [
+        { name: 'Gégé', score: 301, clockTarget: 1, totalPts: 0, bac: 0.0, dartsLeft: 3, stats: { hits: 0, triples: 0, walls: 0, beers: 0 } },
+        { name: 'Dédé', score: 301, clockTarget: 1, totalPts: 0, bac: 0.0, dartsLeft: 3, stats: { hits: 0, triples: 0, walls: 0, beers: 0 } }
+      ];
+      this.currentPlayerIdx = 0;
+      this.round = 1;
+      this.maxRounds = 3;
+
+      // Drunk Wobble & Camera
+      this.time = 0;
+      this.camRoll = 0;
+      this.camOffsetX = 0;
+      this.camOffsetY = 0;
+
+      // Aiming & Mouse State
+      this.mouse = { x: 0, y: 0, isDown: false, downTime: 0 };
+      this.power = 0;
+      this.powerCharging = false;
+
+      // Drinking & Focus State
+      this.isDrinking = false;
+      this.focusClarity = 0.0; // 0 = full drunk wobble, 1 = laser sharp vision
+      this.drinkSipTimer = 0.0;
+
+      // Darts in flight & on board
+      this.dartsOnBoard = [];
+      this.flyingDart = null;
+
+      // AI turn state
+      this.isAiTurn = false;
+      this.aiTimer = 0;
+
+      // Set dimensions & board coordinates
+      this.resize();
+      this.aimX = this.boardX;
+      this.aimY = this.boardY;
+      this.mouse.x = this.boardX;
+      this.mouse.y = this.boardY;
+
+      this.initEvents();
+      this.loop = this.loop.bind(this);
+      requestAnimationFrame(this.loop);
+    }
+
+    resize() {
+      this.width = window.innerWidth;
+      this.height = window.innerHeight;
+      this.canvas.width = this.width;
+      this.canvas.height = this.height;
+
+      this.boardX = this.width / 2;
+      this.boardY = Math.max(160, this.height * 0.44);
+      this.boardRadius = Math.min(this.width * 0.25, this.height * 0.33, 240);
+    }
+
+    initEvents() {
+      window.addEventListener('resize', () => this.resize());
+
+      // Mouse aim & throw
+      this.canvas.addEventListener('mousemove', (e) => {
+        if (this.isAiTurn) return;
+        this.mouse.x = e.clientX;
+        this.mouse.y = e.clientY;
+      });
+
+      this.canvas.addEventListener('mousedown', (e) => {
+        if (this.isAiTurn || this.flyingDart) return;
+        audio.init();
+        this.mouse.isDown = true;
+        this.mouse.downTime = Date.now();
+        this.powerCharging = true;
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (this.powerCharging) {
+          this.powerCharging = false;
+          this.executeThrow();
+        }
+        this.mouse.isDown = false;
+      });
+
+      // Spacebar for Drinking / Focus
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && !e.repeat) {
+          e.preventDefault();
+          this.startDrinking();
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space') {
+          this.stopDrinking();
+        }
+      });
+
+      // UI Drink Button
+      const drinkBtn = document.getElementById('btn-drink-focus');
+      if (drinkBtn) {
+        drinkBtn.addEventListener('mousedown', () => this.startDrinking());
+        window.addEventListener('mouseup', () => this.stopDrinking());
+        drinkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.startDrinking(); }, { passive: false });
+        window.addEventListener('touchend', () => this.stopDrinking());
+      }
+
+      // Audio Toggle
+      document.getElementById('btn-audio-toggle').addEventListener('click', () => {
+        audio.init();
+        audio.muted = !audio.muted;
+        document.getElementById('btn-audio-toggle').textContent = audio.muted ? '🔇' : '🔊';
+      });
+
+      // Start Modal
+      document.querySelectorAll('.mode-option-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.mode-option-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          this.mode = btn.dataset.mode;
+        });
+      });
+
+      document.getElementById('btn-start-game').addEventListener('click', () => {
+        audio.init();
+        const p1Name = document.getElementById('input-p1').value.trim() || 'Gégé';
+        this.opponentType = document.getElementById('select-opponent').value;
+        const p2Name = this.opponentType === 'human' ? 'Dédé' : (this.opponentType === 'ai_easy' ? 'Dédé (IA)' : 'Le Patron (IA)');
+
+        this.players[0].name = p1Name;
+        this.players[1].name = p2Name;
+
+        document.getElementById('start-modal').classList.add('hidden');
+        this.startNewGame();
+      });
+
+      document.getElementById('btn-replay').addEventListener('click', () => {
+        document.getElementById('end-modal').classList.add('hidden');
+        this.startNewGame();
+      });
+    }
+
+    startNewGame() {
+      for (const p of this.players) {
+        p.score = this.mode === '301' ? 301 : 0;
+        p.clockTarget = 1;
+        p.totalPts = 0;
+        p.bac = 0.0;
+        p.dartsLeft = 3;
+        p.stats = { hits: 0, triples: 0, walls: 0, beers: 0 };
+      }
+      this.currentPlayerIdx = 0;
+      this.round = 1;
+      this.dartsOnBoard = [];
+      this.flyingDart = null;
+      this.isAiTurn = false;
+      this.isDrinking = false;
+      this.focusClarity = 0.0;
+
+      this.resize();
+      this.aimX = this.boardX;
+      this.aimY = this.boardY;
+
+      this.updateUI();
+    }
+
+    startDrinking() {
+      if (this.isAiTurn || this.flyingDart) return;
+      const p = this.players[this.currentPlayerIdx];
+      audio.init();
+
+      // Check if drunk bar is full (100% / 3.0 g/L)
+      if (p.bac >= 3.0) {
+        audio.playBarBell();
+        this.showAnnouncement("🚫 TROP BOURRÉ ! LE BARMAN REFUSE DE SERVIR ! TIRE !");
+        return;
+      }
+
+      this.isDrinking = true;
+      p.stats.beers++;
+      audio.playSipBeer();
+      this.showAnnouncement("GLOU GLOU... VISION NETTE IMMÉDIATE ! 🍺");
+      const btn = document.getElementById('btn-drink-focus');
+      if (btn) btn.classList.add('holding');
+    }
+
+    stopDrinking(hitMax = false) {
+      if (!this.isDrinking) return;
+      this.isDrinking = false;
+      const btn = document.getElementById('btn-drink-focus');
+      if (btn) btn.classList.remove('holding');
+
+      if (hitMax) {
+        audio.playBarBell();
+        audio.playHiccup();
+        this.showAnnouncement("🚨 100% BOURRÉ ! PLUS D'ALCOOL ! TIRE QUAND MÊME !");
+      } else {
+        this.showAnnouncement("L'alcool monte dans le sang... Ça tangue encore plus ! 💥");
+      }
+      this.updateUI();
+    }
+
+    executeThrow() {
+      const p = this.players[this.currentPlayerIdx];
+      if (p.dartsLeft <= 0 || this.flyingDart) return;
+
+      audio.playDartThrow();
+      p.dartsLeft--;
+
+      // Calculate final target coordinate with drunk drift
+      const targetX = this.aimX;
+      const targetY = this.aimY;
+
+      // Start dart flight animation from bottom of screen to target
+      this.flyingDart = {
+        startX: this.width / 2 + (Math.random() - 0.5) * 80,
+        startY: this.height + 40,
+        targetX: targetX,
+        targetY: targetY,
+        progress: 0,
+        speed: 3.2,
+        scale: 1.8,
+        angle: Math.atan2(targetY - (this.height + 40), targetX - (this.width / 2)) + Math.PI / 2
+      };
+
+      this.updateUI();
+    }
+
+    /* AI Player Turn Execution */
+    processAiTurn(dt) {
+      if (!this.isAiTurn) return;
+      this.aiTimer += dt;
+      const p = this.players[1];
+
+      // AI drinking behavior (Dédé loves drinking, Le Patron is more moderate)
+      if (this.aiTimer < 0.7 && p.bac < 2.5 && Math.random() < 0.65) {
+        if (!this.isDrinking) {
+          this.isDrinking = true;
+          audio.playSipBeer();
+          this.showAnnouncement("DÉDÉ PREND UNE GORGÉE ! 🍺");
+        }
+      } else if (this.isDrinking && this.aiTimer >= 0.7) {
+        this.stopDrinking();
+      }
+
+      // AI pauses slightly to "aim", then throws
+      if (this.aiTimer > 1.6 && !this.flyingDart) {
+        if (this.isDrinking) this.stopDrinking();
+        this.aiTimer = 0;
+
+        // Effective drunkenness determines accuracy
+        const eff = this.effectiveDrunk !== undefined ? this.effectiveDrunk : p.bac;
+        const errRadius = this.opponentType === 'ai_easy' ? (30 + eff * 55) : (15 + eff * 25);
+
+        let targetX = this.boardX;
+        let targetY = this.boardY - this.boardRadius * 0.56; // Triple 20
+
+        if (this.mode === 'clock') {
+          const targetSector = p.clockTarget;
+          const idx = SECTORS.indexOf(targetSector);
+          const angle = (idx * Math.PI / 10) - Math.PI / 2;
+          targetX = this.boardX + Math.cos(angle) * this.boardRadius * 0.7;
+          targetY = this.boardY + Math.sin(angle) * this.boardRadius * 0.7;
+        }
+
+        targetX += (Math.random() - 0.5) * errRadius * 2;
+        targetY += (Math.random() - 0.5) * errRadius * 2;
+
+        this.aimX = targetX;
+        this.aimY = targetY;
+        this.executeThrow();
+      }
+    }
+
+    onDartLanded(hitX, hitY) {
+      const p = this.players[this.currentPlayerIdx];
+      const result = evaluateDartHit(this.boardX, this.boardY, hitX, hitY, this.boardRadius);
+
+      audio.playDartHit(result.type);
+
+      // Record throw on board
+      this.dartsOnBoard.push({
+        x: hitX,
+        y: hitY,
+        angle: (Math.random() - 0.5) * 0.4,
+        type: result.type,
+        color: this.currentPlayerIdx === 0 ? '#f59e0b' : '#38bdf8'
+      });
+
+      document.getElementById('last-throw-badge').textContent = result.text;
+      this.showAnnouncement(result.text);
+
+      p.stats.hits++;
+      if (result.type === 'triple') p.stats.triples++;
+      if (result.type === 'wall') p.stats.walls++;
+
+      if (this.mode === '301') {
+        if (p.score - result.score === 0) {
+          p.score = 0;
+          this.endGame(p);
+          return;
+        } else if (p.score - result.score < 0) {
+          this.showAnnouncement("CASSE-GUEULE ! (Score dépassé !)");
+        } else {
+          p.score -= result.score;
+        }
+      } else if (this.mode === 'clock') {
+        if (result.sector === p.clockTarget) {
+          p.clockTarget++;
+          this.showAnnouncement(`VALIDÉ : ${result.sector} ! -> Passe au ${p.clockTarget}`);
+          if (p.clockTarget > 20) {
+            this.endGame(p);
+            return;
+          }
+        }
+      } else if (this.mode === 'duel9') {
+        p.totalPts += result.score;
+      }
+
+      this.updateUI();
+
+      if (p.dartsLeft <= 0) {
+        setTimeout(() => this.nextTurn(), 1400);
+      } else if (this.isAiTurn) {
+        this.aiTimer = 0;
+      }
+    }
+
+    nextTurn() {
+      // Switch player
+      this.currentPlayerIdx = (this.currentPlayerIdx + 1) % 2;
+      const nextP = this.players[this.currentPlayerIdx];
+      nextP.dartsLeft = 3;
+
+      if (this.currentPlayerIdx === 0) {
+        this.round++;
+        this.dartsOnBoard = [];
+
+        if (this.mode === 'duel9' && this.round > this.maxRounds) {
+          const winner = this.players[0].totalPts >= this.players[1].totalPts ? this.players[0] : this.players[1];
+          this.endGame(winner);
+          return;
+        }
+      }
+
+      this.isAiTurn = (this.currentPlayerIdx === 1 && this.opponentType !== 'human');
+      this.aiTimer = 0;
+
+      this.showAnnouncement(`À TOI DE JOUER, ${nextP.name.toUpperCase()} !`);
+      this.updateUI();
+    }
+
+    endGame(winner) {
+      const modal = document.getElementById('end-modal');
+      document.getElementById('end-winner-title').textContent = `${winner.name.toUpperCase()} GAGNE LA TOURNÉE ! 🍺`;
+      document.getElementById('end-summary').textContent = `Fin de partie éclatante au Vieux Coud'Boul !`;
+
+      document.getElementById('end-stats-box').innerHTML = `
+        <div>🎯 Fléchettes plantées : <b>${winner.stats.hits}</b></div>
+        <div>🌟 Triples légendaires : <b>${winner.stats.triples}</b></div>
+        <div>🧱 Trous dans le papier peint : <b>${winner.stats.walls}</b></div>
+        <div>🍺 Pintes et gorgées bues : <b>${winner.stats.beers}</b></div>
+        <div>💨 Taux d'Alcoolémie final : <b style="color:var(--beer-amber);">${winner.bac.toFixed(2)} g/L</b></div>
+      `;
+
+      modal.classList.remove('hidden');
+    }
+
+    showAnnouncement(text) {
+      const el = document.getElementById('announcer-text');
+      el.textContent = text;
+      el.classList.add('show');
+      clearTimeout(this.announcerTimer);
+      this.announcerTimer = setTimeout(() => {
+        el.classList.remove('show');
+      }, 1300);
+    }
+
+    updateUI() {
+      const p1 = this.players[0];
+      const p2 = this.players[1];
+
+      document.getElementById('p1-name-display').textContent = p1.name;
+      document.getElementById('p2-name-display').textContent = p2.name;
+
+      if (this.mode === '301') {
+        document.getElementById('mode-display-title').textContent = 'PUB 301 · DÉCOMPTE';
+        document.getElementById('p1-score-display').textContent = p1.score;
+        document.getElementById('p2-score-display').textContent = p2.score;
+      } else if (this.mode === 'clock') {
+        document.getElementById('mode-display-title').textContent = "TOUR DE L'HORLOGE";
+        document.getElementById('p1-score-display').textContent = `Cible: ${p1.clockTarget}`;
+        document.getElementById('p2-score-display').textContent = `Cible: ${p2.clockTarget}`;
+      } else {
+        document.getElementById('mode-display-title').textContent = `DUEL 9 FLÉCHETTES (${this.round}/${this.maxRounds})`;
+        document.getElementById('p1-score-display').textContent = `${p1.totalPts} pts`;
+        document.getElementById('p2-score-display').textContent = `${p2.totalPts} pts`;
+      }
+
+      document.getElementById('p1-row').className = `player-row ${this.currentPlayerIdx === 0 ? 'active' : ''}`;
+      document.getElementById('p2-row').className = `player-row ${this.currentPlayerIdx === 1 ? 'active' : ''}`;
+
+      const curr = this.players[this.currentPlayerIdx];
+      document.getElementById('round-info').textContent = `Tour ${this.round} · Fléchettes restantes : ${curr.dartsLeft}/3`;
+
+      // Alcootest display
+      const isFull = curr.bac >= 3.0;
+      const bacPct = Math.min(100, Math.round((curr.bac / 3.0) * 100));
+      document.getElementById('bac-value').textContent = `${curr.bac.toFixed(2)} g/L (${bacPct}%)`;
+
+      const bacBar = document.getElementById('bac-bar');
+      bacBar.style.width = `${bacPct}%`;
+
+      const drinkBtn = document.getElementById('btn-drink-focus');
+      const drinkLabel = document.getElementById('drink-btn-label');
+      const hiccupAlert = document.getElementById('hiccup-alert');
+
+      if (isFull) {
+        bacBar.style.background = 'linear-gradient(90deg, #ef4444, #b91c1c)';
+        bacBar.style.boxShadow = '0 0 12px #ef4444';
+        if (drinkBtn) drinkBtn.classList.add('full-drunk');
+        if (drinkLabel) drinkLabel.textContent = "🚫 TROP BOURRÉ ! (Bar fermé ! Tire quand même !)";
+        if (hiccupAlert) hiccupAlert.style.display = 'block';
+      } else {
+        bacBar.style.background = 'linear-gradient(90deg, #10b981, #f59e0b, #ef4444)';
+        bacBar.style.boxShadow = 'none';
+        if (drinkBtn) drinkBtn.classList.remove('full-drunk');
+        if (drinkLabel) drinkLabel.textContent = "BOIRE UN COUP (Maintenir ESPACE)";
+        if (hiccupAlert) hiccupAlert.style.display = 'none';
+      }
+
+      let label = "Tangage de comptoir (Bois pour figer !)";
+      if (isFull) label = "🚨 100% BOURRÉ ! (Bar fermé ! Tire à l'aveugle !)";
+      else if (curr.bac > 2.0) label = "Complètement cuit / Vision triple 🌀";
+      else if (curr.bac > 1.0) label = "Bien entamé / Vision double 👁️";
+      else if (curr.bac > 0.3) label = "Ça monte à la tête ! 🍺";
+      document.getElementById('bac-label').textContent = `"${label}"`;
+
+      // Darts rack
+      for (let i = 0; i < 3; i++) {
+        const icon = document.getElementById(`dart-icon-${i}`);
+        if (icon) {
+          if (i < curr.dartsLeft) {
+            icon.classList.remove('used');
+          } else {
+            icon.classList.add('used');
+          }
+        }
+      }
+
+      // Dynamic drunk screen blur & distortion
+      const eff = this.effectiveDrunk !== undefined ? this.effectiveDrunk : curr.bac;
+      const blurVal = Math.max(0, (eff - 0.4) * 1.6);
+      document.getElementById('drunk-blur-layer').style.backdropFilter = `blur(${blurVal}px)`;
+      document.getElementById('drunk-distortion').style.opacity = `${Math.min(0.5, eff * 0.16)}`;
+    }
+
+    /* Main Animation & Physics Loop */
+    loop(timestamp) {
+      if (!this.lastTime) this.lastTime = timestamp;
+      const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1);
+      this.lastTime = timestamp;
+      this.time += dt;
+
+      this.update(dt);
+      this.render();
+
+      requestAnimationFrame(this.loop);
+    }
+
+    update(dt) {
+      const p = this.players[this.currentPlayerIdx];
+
+      // Drinking / Focus mechanics
+      if (this.isDrinking) {
+        this.drinkSipTimer += dt;
+        if (this.drinkSipTimer >= 0.28) {
+          this.drinkSipTimer = 0;
+          audio.playSipBeer();
+        }
+
+        // Raise BAC continuously
+        p.bac = Math.min(3.0, p.bac + dt * 0.65);
+
+        // Focus clarity snaps in quickly (100% sharp vision)
+        this.focusClarity = Math.min(1.0, this.focusClarity + dt * 4.5);
+
+        if (p.bac >= 3.0) {
+          this.stopDrinking(true);
+        }
+      } else {
+        // Focus clarity fades out, alcohol kicks in!
+        this.focusClarity = Math.max(0.0, this.focusClarity - dt * 2.2);
+      }
+
+      // Effective drunkenness:
+      // Even with 0 beers, BASE_DRUNK = 0.95 gives immediate noticeable pub sway & hand tremor!
+      // When drinking (focusClarity ~ 1.0), effectiveDrunk drops to 0 (laser precision)!
+      // When released, effectiveDrunk rises to (BASE_DRUNK + p.bac)!
+      const totalDrunk = BASE_DRUNK + p.bac;
+      this.effectiveDrunk = totalDrunk * (1.0 - this.focusClarity);
+
+      // Camera sway & drunk roll
+      this.camRoll = Math.sin(this.time * 0.75) * this.effectiveDrunk * 0.026;
+      this.camOffsetX = Math.sin(this.time * 0.95) * this.effectiveDrunk * 30;
+      this.camOffsetY = Math.cos(this.time * 0.85) * this.effectiveDrunk * 22;
+
+      // Mouse Aim with Drunk Wobble & Tremor
+      if (!this.isAiTurn) {
+        const tremorAmount = this.effectiveDrunk * 38;
+        const tremorX = Math.sin(this.time * 4.2) * tremorAmount + Math.cos(this.time * 8.5) * (tremorAmount * 0.45);
+        const tremorY = Math.cos(this.time * 3.7) * tremorAmount + Math.sin(this.time * 7.9) * (tremorAmount * 0.45);
+
+        this.aimX += (this.mouse.x + tremorX - this.aimX) * 0.22;
+        this.aimY += (this.mouse.y + tremorY - this.aimY) * 0.22;
+      }
+
+      // Flying Dart Animation
+      if (this.flyingDart) {
+        const d = this.flyingDart;
+        d.progress += dt * d.speed;
+
+        if (d.progress >= 1.0) {
+          this.onDartLanded(d.targetX, d.targetY);
+          this.flyingDart = null;
+        }
+      }
+
+      // AI Logic
+      if (this.isAiTurn) {
+        this.processAiTurn(dt);
+      }
+    }
+
+    render() {
+      const ctx = this.ctx;
+      ctx.clearRect(0, 0, this.width, this.height);
+
+      ctx.save();
+
+      // Apply Pub drunk camera sway & roll
+      ctx.translate(this.width / 2 + this.camOffsetX, this.height / 2 + this.camOffsetY);
+      ctx.rotate(this.camRoll);
+      ctx.translate(-this.width / 2, -this.height / 2);
+
+      // 1. Draw Pub Background
+      this.renderPubEnvironment(ctx);
+
+      // 2. Draw Drunk Ghost Dartboards using effectiveDrunk
+      const eff = this.effectiveDrunk !== undefined ? this.effectiveDrunk : this.players[this.currentPlayerIdx].bac;
+      if (eff > 0.5) {
+        this.renderDrunkPhantomBoards(ctx, eff);
+      }
+
+      // 3. Draw The Real Dartboard
+      this.renderDartboard(ctx, this.boardX, this.boardY, this.boardRadius, 1.0);
+
+      // 4. Draw Darts Sticking in the Board
+      this.renderStuckDarts(ctx);
+
+      // 5. Draw Flying Dart in Flight (if any)
+      if (this.flyingDart) {
+        this.renderFlyingDart(ctx, this.flyingDart);
+      }
+
+      // 6. Draw Player Hand & Aiming Crosshair
+      const p = this.players[this.currentPlayerIdx];
+      if (!this.isAiTurn && !this.flyingDart && p.dartsLeft > 0) {
+        this.renderPlayerHand(ctx);
+      }
+
+      ctx.restore();
+    }
+
+    renderPubEnvironment(ctx) {
+      // Wood wall texture & shadow
+      ctx.fillStyle = '#170e0a';
+      ctx.fillRect(-100, -100, this.width + 200, this.height + 200);
+
+      // Vertical wood planks
+      ctx.strokeStyle = '#291811';
+      ctx.lineWidth = 2;
+      const plankW = 75;
+      for (let x = 0; x < this.width; x += plankW) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, this.height);
+        ctx.stroke();
+      }
+
+      // Brass lamp warm cone of light shining down on dartboard
+      const lampGrad = ctx.createRadialGradient(this.boardX, this.boardY - 60, 20, this.boardX, this.boardY, this.boardRadius * 2.2);
+      lampGrad.addColorStop(0, 'rgba(245, 158, 11, 0.45)');
+      lampGrad.addColorStop(0.5, 'rgba(217, 119, 6, 0.15)');
+      lampGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = lampGrad;
+      ctx.fillRect(0, 0, this.width, this.height);
+
+      // Dartboard Wooden Cabinet / Black Foam Surround
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+      ctx.shadowBlur = 40;
+      ctx.shadowOffsetY = 15;
+
+      // Dark felt square surround
+      const surroundSize = this.boardRadius * 2.5;
+      ctx.fillStyle = '#1c1917';
+      ctx.fillRect(this.boardX - surroundSize / 2, this.boardY - surroundSize / 2, surroundSize, surroundSize);
+
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 10;
+      ctx.strokeRect(this.boardX - surroundSize / 2, this.boardY - surroundSize / 2, surroundSize, surroundSize);
+      ctx.restore();
+    }
+
+    renderDrunkPhantomBoards(ctx, drunkenness) {
+      // Offset oscillating phantom boards
+      const sway1X = Math.sin(this.time * 1.8) * drunkenness * 32;
+      const sway1Y = Math.cos(this.time * 2.1) * drunkenness * 24;
+      const alpha1 = Math.min(0.45, (drunkenness - 0.6) * 0.25);
+
+      this.renderDartboard(ctx, this.boardX + sway1X, this.boardY + sway1Y, this.boardRadius, alpha1);
+
+      // Third phantom board if heavily intoxicated
+      if (drunkenness > 1.8) {
+        const sway2X = Math.cos(this.time * 1.4) * drunkenness * 48;
+        const sway2Y = Math.sin(this.time * 1.6) * drunkenness * 36;
+        const alpha2 = Math.min(0.35, (drunkenness - 1.6) * 0.2);
+        this.renderDartboard(ctx, this.boardX - sway2X, this.boardY - sway2Y, this.boardRadius, alpha2);
+      }
+    }
+
+    renderDartboard(ctx, bx, by, br, opacity = 1.0) {
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      ctx.translate(bx, by);
+
+      // Board outer rim (Numbers ring)
+      ctx.fillStyle = '#0f0e0c';
+      ctx.beginPath();
+      ctx.arc(0, 0, br, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw 20 alternating slices (Black & Sisal Cream)
+      const numSectors = 20;
+      const step = (Math.PI * 2) / numSectors;
+
+      for (let i = 0; i < numSectors; i++) {
+        const startA = (i * step) - Math.PI / 2 - (step / 2);
+        const endA = startA + step;
+        const isEven = i % 2 === 0;
+
+        // Base pie
+        ctx.fillStyle = isEven ? '#11100e' : '#f5f0d8';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, br * 0.93, startA, endA);
+        ctx.closePath();
+        ctx.fill();
+
+        // Double ring (outer)
+        ctx.fillStyle = isEven ? '#dc2626' : '#16a34a';
+        ctx.beginPath();
+        ctx.arc(0, 0, br * 0.93, startA, endA);
+        ctx.arc(0, 0, br * 0.85, endA, startA, true);
+        ctx.closePath();
+        ctx.fill();
+
+        // Triple ring (inner)
+        ctx.fillStyle = isEven ? '#dc2626' : '#16a34a';
+        ctx.beginPath();
+        ctx.arc(0, 0, br * 0.58, startA, endA);
+        ctx.arc(0, 0, br * 0.50, endA, startA, true);
+        ctx.closePath();
+        ctx.fill();
+
+        // White metallic numbers on outer rim
+        const numAngle = (i * step) - Math.PI / 2;
+        const numR = br * 0.96;
+        const nx = Math.cos(numAngle) * numR;
+        const ny = Math.sin(numAngle) * numR;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${Math.max(12, br * 0.08)}px Arial, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(SECTORS[i].toString(), nx, ny);
+      }
+
+      // Outer Bull (25 pts - Green)
+      ctx.fillStyle = '#16a34a';
+      ctx.beginPath();
+      ctx.arc(0, 0, br * 0.095, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Inner Bull (50 pts - Red)
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath();
+      ctx.arc(0, 0, br * 0.038, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Metal wire spider (thin lines separating rings & sectors)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 1.2;
+      for (let i = 0; i < numSectors; i++) {
+        const a = (i * step) - Math.PI / 2 - (step / 2);
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * br * 0.095, Math.sin(a) * br * 0.095);
+        ctx.lineTo(Math.cos(a) * br * 0.93, Math.sin(a) * br * 0.93);
+        ctx.stroke();
+      }
+
+      ctx.beginPath();
+      ctx.arc(0, 0, br * 0.85, 0, Math.PI * 2);
+      ctx.arc(0, 0, br * 0.93, 0, Math.PI * 2);
+      ctx.arc(0, 0, br * 0.50, 0, Math.PI * 2);
+      ctx.arc(0, 0, br * 0.58, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    renderStuckDarts(ctx) {
+      for (const d of this.dartsOnBoard) {
+        ctx.save();
+        ctx.translate(d.x, d.y);
+        ctx.rotate(d.angle);
+
+        // Shadow of dart sticking out
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.beginPath();
+        ctx.ellipse(8, 12, 14, 5, Math.PI / 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Dart barrel & point
+        ctx.strokeStyle = '#d4d4d8';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, 24);
+        ctx.stroke();
+
+        // Flights (feathers)
+        ctx.fillStyle = d.color;
+        ctx.beginPath();
+        ctx.moveTo(0, 24);
+        ctx.lineTo(-8, 38);
+        ctx.lineTo(0, 34);
+        ctx.lineTo(8, 38);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    renderFlyingDart(ctx, d) {
+      const curX = d.startX + (d.targetX - d.startX) * d.progress;
+      const curY = d.startY + (d.targetY - d.startY) * d.progress;
+      const curScale = 2.0 - (d.progress * 1.0);
+
+      ctx.save();
+      ctx.translate(curX, curY);
+      ctx.rotate(d.angle);
+      ctx.scale(curScale, curScale);
+
+      // Dart in 3D perspective
+      ctx.strokeStyle = '#e4e4e7';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(0, -18);
+      ctx.lineTo(0, 18);
+      ctx.stroke();
+
+      // Flights
+      ctx.fillStyle = this.currentPlayerIdx === 0 ? '#f59e0b' : '#38bdf8';
+      ctx.beginPath();
+      ctx.moveTo(0, 18);
+      ctx.lineTo(-12, 38);
+      ctx.lineTo(0, 32);
+      ctx.lineTo(12, 38);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    renderPlayerHand(ctx) {
+      const p = this.players[this.currentPlayerIdx];
+
+      // Slurred trembling crosshair
+      ctx.save();
+      ctx.translate(this.aimX, this.aimY);
+
+      // Crosshair ring
+      ctx.strokeStyle = this.isDrinking ? '#facc15' : 'rgba(245, 158, 11, 0.7)';
+      ctx.lineWidth = this.isDrinking ? 3.5 : 2.5;
+      if (this.isDrinking) {
+        ctx.shadowColor = '#facc15';
+        ctx.shadowBlur = 15;
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, this.isDrinking ? 14 : 18, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Crosshair lines
+      ctx.beginPath();
+      ctx.moveTo(-28, 0); ctx.lineTo(-8, 0);
+      ctx.moveTo(8, 0); ctx.lineTo(28, 0);
+      ctx.moveTo(0, -28); ctx.lineTo(0, -8);
+      ctx.moveTo(0, 8); ctx.lineTo(0, 28);
+      ctx.stroke();
+
+      // Charging Power Indicator if mouse held
+      if (this.powerCharging) {
+        const holdTime = (Date.now() - this.mouse.downTime) / 1000;
+        const powerPct = Math.min(1.0, holdTime / 0.8);
+
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.4)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 32 * powerPct, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+
+      ctx.restore();
+
+      // Hand holding dart at bottom of screen
+      ctx.save();
+      const handBaseX = this.aimX * 0.4 + (this.width / 2) * 0.6;
+      const handBaseY = this.height - 20;
+
+      ctx.translate(handBaseX, handBaseY);
+      ctx.fillStyle = '#d97706';
+      ctx.beginPath();
+      ctx.arc(0, 0, 45, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Dart in hand pointing upwards
+      ctx.strokeStyle = '#e4e4e7';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(0, 15);
+      ctx.lineTo(0, -50);
+      ctx.stroke();
+
+      ctx.fillStyle = this.currentPlayerIdx === 0 ? '#f59e0b' : '#38bdf8';
+      ctx.beginPath();
+      ctx.moveTo(0, 15);
+      ctx.lineTo(-14, 45);
+      ctx.lineTo(0, 38);
+      ctx.lineTo(14, 45);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    }
+  }
+
+  window.addEventListener('load', () => {
+    window.game = new DrunkDartsGame();
+  });
+  </script>
+</body>
+</html>
