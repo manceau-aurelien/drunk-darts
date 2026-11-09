@@ -1013,6 +1013,8 @@
 
       // Drinking & Focus State
       this.isDrinking = false;
+      const drinkBtnNew = document.getElementById('btn-drink-focus');
+      if (drinkBtnNew) drinkBtnNew.classList.remove('holding');
       this.focusClarity = 0.0; // 0 = full drunk wobble, 1 = laser sharp vision
       this.drinkSipTimer = 0.0;
 
@@ -1281,7 +1283,7 @@
       const p = this.players[1];
 
       // AI drinking behavior (Dédé loves drinking, Le Patron is more moderate)
-      if (this.aiTimer < 0.7 && p.bac < 2.5 && Math.random() < 0.65) {
+      if (p.dartsLeft > 0 && !this.flyingDart && this.aiTimer < 0.7 && p.bac < 2.5 && Math.random() < 0.65) {
         if (!this.isDrinking) {
           this.isDrinking = true;
           audio.playSipBeer();
@@ -1390,6 +1392,10 @@
           return;
         }
       }
+
+      this.isDrinking = false;
+      const drinkBtnEl = document.getElementById('btn-drink-focus');
+      if (drinkBtnEl) drinkBtnEl.classList.remove('holding');
 
       this.isAiTurn = (this.currentPlayerIdx === 1 && this.opponentType !== 'human');
       this.aiTimer = 0;
