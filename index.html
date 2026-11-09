@@ -595,6 +595,7 @@
           <div style="font-size: 10px; color: #cbd5e1; text-align: center;">Championnat de Fléchettes Éméchées</div>
         </div>
         <button class="audio-btn" id="btn-audio-toggle" title="Son Actif/Muet">🔊</button>
+        <button class="audio-btn" id="btn-home" title="Retour à l'accueil">🏠</button>
       </div>
 
       <!-- Right Shelf (Alcootest & Bar supplies) -->
@@ -1166,6 +1167,19 @@
 
         document.getElementById('start-modal').classList.add('hidden');
         this.startNewGame();
+      });
+
+      // Retour à l'écran d'accueil en cours de partie
+      document.getElementById('btn-home').addEventListener('click', () => {
+        if (!confirm("Retourner à l'accueil ? La partie en cours sera abandonnée.")) return;
+        this.isAiTurn = false;
+        this.flyingDart = null;
+        this.powerCharging = false;
+        this.mouse.isDown = false;
+        this.stopDrinking();
+        document.getElementById('end-modal').classList.add('hidden');
+        document.getElementById('start-modal').classList.remove('hidden');
+        document.getElementById('start-modal').scrollTop = 0;
       });
 
       document.getElementById('btn-replay').addEventListener('click', () => {
