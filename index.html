@@ -1554,6 +1554,11 @@
       const totalDrunk = BASE_DRUNK + p.bac;
       this.effectiveDrunk = totalDrunk * (1.0 - this.focusClarity);
 
+      // Flou et distorsion d'écran mis à jour à chaque image (et pas seulement aux événements)
+      const blurPx = Math.max(0, (this.effectiveDrunk - 0.4) * 1.6);
+      document.getElementById('drunk-blur-layer').style.backdropFilter = `blur(${blurPx.toFixed(2)}px)`;
+      document.getElementById('drunk-distortion').style.opacity = `${Math.min(0.5, this.effectiveDrunk * 0.16)}`;
+
       // Camera sway & drunk roll
       this.camRoll = Math.sin(this.time * 0.75) * this.effectiveDrunk * 0.026;
       this.camOffsetX = Math.sin(this.time * 0.95) * this.effectiveDrunk * 30;
